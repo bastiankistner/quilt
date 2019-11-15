@@ -1484,6 +1484,13 @@
   dependencies:
     "@types/node" "*"
 
+"@types/node-gzip@^1.1.0":
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/@types/node-gzip/-/node-gzip-1.1.0.tgz#99a7dfab7c0eec545658f3d736e8d6939ed7161e"
+  integrity sha512-j7cGb6HIOZbDx3sqe9/9VAPeSvyt143yu5k35gzRXE3mxEgK6BOZ6BAiJ3ToXBcJqLzL9Cr53dav21jlp3f9gw==
+  dependencies:
+    "@types/node" "*"
+
 "@types/node@*", "@types/node@>=6":
   version "12.11.0"
   resolved "https://registry.yarnpkg.com/@types/node/-/node-12.11.0.tgz#7f893924970076b20ca0089df50ab9f171088909"
@@ -1506,7 +1513,7 @@
   resolved "https://registry.yarnpkg.com/@types/range-parser/-/range-parser-1.2.3.tgz#7ee330ba7caafb98090bece86a5ee44115904c2c"
   integrity sha512-ewFXqrQHlFsgc09MK5jP5iR7vumV/BYayNC6PgJO2LPe8vrnNFyjQjSppfEngITi0qvfKtzFvgKymGheFM9UOA==
 
-"@types/react-dom@^16.0.11", "@types/react-dom@^16.8.3":
+"@types/react-dom@16.8.3", "@types/react-dom@^16.0.11", "@types/react-dom@^16.8.3":
   version "16.8.3"
   resolved "https://registry.yarnpkg.com/@types/react-dom/-/react-dom-16.8.3.tgz#6131b7b6158bc7ed1925a3374b88b7c00481f0cb"
   integrity sha512-HF5hD5YR3z9Mn6kXcW1VKe4AQ04ZlZj1EdLBae61hzQ3eEWWxMgNLUbIxeZp40BnSxqY1eAYLsH9QopQcxzScA==
@@ -7835,6 +7842,11 @@ node-fetch@^2.1.2, node-fetch@^2.2.0, node-fetch@^2.3.0:
   version "2.6.0"
   resolved "https://registry.yarnpkg.com/node-fetch/-/node-fetch-2.6.0.tgz#e633456386d4aa55863f676a7ab0daa8fdecb0fd"
   integrity sha512-8dG4H5ujfvFiqDmVu9fQ5bOHUC15JMjMY/Zumv26oOvvVJjM67KF8koCWIabKQ1GJIa9r2mMZscBq/TbdOcmNA==
+
+node-gzip@^1.1.2:
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/node-gzip/-/node-gzip-1.1.2.tgz#245bd171b31ce7c7f50fc4cd0ca7195534359afb"
+  integrity sha512-ZB6zWpfZHGtxZnPMrJSKHVPrRjURoUzaDbLFj3VO70mpLTW5np96vXyHwft4Id0o+PYIzgDkBUjIzaNHhQ8srw==
 
 node-int64@^0.4.0:
   version "0.4.0"

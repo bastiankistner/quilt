@@ -1,8 +1,9 @@
 import {join} from 'path';
 
-import {readJson} from 'fs-extra';
+import {readFile, readJson} from 'fs-extra';
 import {matchesUA} from 'browserslist-useragent';
 import appRoot from 'app-root-path';
+import {ungzip} from 'node-gzip';
 
 export interface Asset {
   path: string;
@@ -22,7 +23,7 @@ export interface AsyncAsset {
 }
 
 export interface Manifest {
-  name?: string;
+  identifier: {locales?: string[]; target?: string};
   browsers?: string[];
   entrypoints: {[key: string]: Entrypoint};
   asyncAssets: {[key: string]: AsyncAsset[]};
@@ -43,6 +44,7 @@ interface AssetSelector {
 }
 
 interface AssetOptions {
+  locale?: string;
   name?: string;
   asyncAssets?: Iterable<string | RegExp | AssetSelector>;
 }
@@ -52,7 +54,7 @@ enum AssetKind {
   Scripts = 'js',
 }
 
-const DEFAULT_MANIFEST_PATH = 'build/client/assets.json';
+const DEFAULT_MANIFEST_PATH = 'build/client/assets.json.gz';
 
 export default class Assets {
   assetPrefix: string;
@@ -69,7 +71,7 @@ export default class Assets {
   async scripts(options: AssetOptions = {}) {
     const js = getAssetsFromManifest(
       {...options, kind: AssetKind.Scripts},
-      await this.getResolvedManifest(),
+      await this.getResolvedManifest(options.locale),
     );
 
     const scripts =
@@ -86,16 +88,25 @@ export default class Assets {
   async styles(options: AssetOptions = {}) {
     return getAssetsFromManifest(
       {...options, kind: AssetKind.Styles},
-      await this.getResolvedManifest(),
+      await this.getResolvedManifest(options.locale),
     );
   }
 
   async assets(options: AssetOptions) {
-    return getAssetsFromManifest(options, await this.getResolvedManifest());
+    return getAssetsFromManifest(
+      options,
+      await this.getResolvedManifest(options.locale),
+    );
   }
 
-  async asyncAssets(ids: Iterable<string | RegExp | AssetSelector>) {
-    return getAsyncAssetsFromManifest(ids, await this.getResolvedManifest());
+  async asyncAssets(
+    ids: Iterable<string | RegExp | AssetSelector>,
+    locale: string | undefined,
+  ) {
+    return getAsyncAssetsFromManifest(
+      ids,
+      await this.getResolvedManifest(locale),
+    );
   }
 
   async graphQLSource(id: string) {
@@ -103,7 +114,9 @@ export default class Assets {
     return graphQLManifest.get(id) || null;
   }
 
-  private async getResolvedManifestEntry() {
+  private async getResolvedManifestEntry(
+    locale: string | undefined,
+  ): Promise<Manifest> {
     if (this.resolvedManifestEntry) {
       return this.resolvedManifestEntry;
     }
@@ -126,27 +139,63 @@ export default class Assets {
     // browsers it was compiled for matches the user agent, or where there
     // is no browser restriction on the bundle.
     // 4. If no matching manifests are found, fall back to the last manifest.
-    if (userAgent == null || consolidatedManifest.length === 1) {
+    if (consolidatedManifest.length < 2) {
+      this.resolvedManifestEntry = lastManifestEntry;
+    } else if (userAgent == null) {
+      if (locale) {
+        const localeManifests = consolidatedManifest.filter(manifest => {
+          return (
+            manifest.identifier.locales &&
+            manifest.identifier.locales.includes(locale)
+          );
+        });
+        if (localeManifests.length > 0) {
+          this.resolvedManifestEntry = localeManifests.pop() as Manifest;
+          return this.resolvedManifestEntry;
+        }
+      }
       this.resolvedManifestEntry = lastManifestEntry;
     } else {
-      this.resolvedManifestEntry =
-        consolidatedManifest.find(
-          ({browsers}) =>
-            browsers == null ||
-            matchesUA(userAgent, {
-              browsers,
-              ignoreMinor: true,
-              ignorePatch: true,
-              allowHigherVersions: true,
-            }),
-        ) || lastManifestEntry;
+      const compatibleManifests = consolidatedManifest.filter(
+        ({browsers}) =>
+          browsers == null ||
+          matchesUA(userAgent, {
+            browsers,
+            ignoreMinor: true,
+            ignorePatch: true,
+            allowHigherVersions: true,
+          }),
+      );
+      if (locale) {
+        const compatibleLocaleManifest = compatibleManifests.find(manifest => {
+          return Boolean(
+            manifest.identifier.locales &&
+              manifest.identifier.locales.includes(locale),
+          );
+        });
+        this.resolvedManifestEntry =
+          compatibleLocaleManifest || lastManifestEntry;
+      } else {
+        this.resolvedManifestEntry =
+          consolidatedManifest.find(
+            ({browsers}) =>
+              browsers == null ||
+              matchesUA(userAgent, {
+                browsers,
+                ignoreMinor: true,
+                ignorePatch: true,
+                allowHigherVersions: true,
+              }),
+          ) || lastManifestEntry;
+      }
     }
-
     return this.resolvedManifestEntry;
   }
 
-  private async getResolvedManifest(): Promise<Manifest> {
-    const manifest = await this.getResolvedManifestEntry();
+  private async getResolvedManifest(
+    locale: string | undefined,
+  ): Promise<Manifest> {
+    const manifest = await this.getResolvedManifestEntry(locale);
     return manifest;
   }
 }
@@ -159,7 +208,17 @@ function loadConsolidatedManifest(manifestPath: string) {
     return consolidatedManifestPromise;
   }
 
-  consolidatedManifestPromise = readJson(join(appRoot.path, manifestPath));
+  consolidatedManifestPromise = readFile(join(appRoot.path, manifestPath))
+    .then(zippedContent => ungzip(zippedContent))
+    .then(manifestJsonBuffer => JSON.parse(manifestJsonBuffer.toString()))
+    .then(manifests => {
+      return manifests.map(manifest => {
+        if (!manifest.identifier) {
+          manifest.identifier = {target: manifest.name};
+        }
+        return manifest;
+      });
+    });
 
   return consolidatedManifestPromise;
 }
